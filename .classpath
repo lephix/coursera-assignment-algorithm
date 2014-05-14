@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src/main/java"/>
+	<classpathentry kind="src" path="src/main/algorithm2/assignment3"/>
 	<classpathentry kind="src" path="src/main/algorithm2/assignment1"/>
 	<classpathentry kind="src" path="src/main/algorithm2/assignment2"/>
 	<classpathentry kind="src" path="src/main/resources"/>
