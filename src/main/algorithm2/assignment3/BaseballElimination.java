@@ -11,7 +11,12 @@ public class BaseballElimination {
 	private HashMap<Integer, Integer> remains = new HashMap<>();
 	private HashMap<String, Integer> against = new HashMap<>();
 	
+	private int againstVerticsCount = 0;
+	private List<Integer> teamOrder;
+	
 	private int maxWin = 0;
+	private FordFulkerson fordFulkerson;
+	private String lastTeam = "";
 
 	public BaseballElimination(String filename) {
 		In in = new In(filename);
@@ -36,6 +41,9 @@ public class BaseballElimination {
 			}
 			teamNo++;
 		}
+		
+		// this variable store count of the first part graph of all team against vertices.
+		againstVerticsCount = ((teamsCount - 1) * (teamsCount - 2) / 2);
 	}
 
 	public int numberOfTeams() {
@@ -64,26 +72,24 @@ public class BaseballElimination {
 	}
 
 	public boolean isEliminated(String team) throws IllegalArgumentException {
-		if (wins(team) + remaining(team) < maxWin) {
-			return false;
-		}
-		
-		int againstVerticsCount = ((teamsCount - 1) * (teamsCount - 2) / 2);
 		int teamVerticsCount = teamsCount - 1;
 		
 		// start vertex number is g.V()-2, end vertex number is g.V()-1
 		// The last 2 means start vertex and end vertex
 		FlowNetwork flowNetwork = new FlowNetwork(againstVerticsCount + teamVerticsCount + 2); 
+		int startVertex = flowNetwork.V() - 2;
+		int sinkVertex = flowNetwork.V() - 1;
 		
 		int againstVertexNumber = 0;
-		List<Integer> teamOrder = new ArrayList<>();
+		int maxCapacity = 0;
+		this.teamOrder = new ArrayList<>();
 		for (int i=0; i<teamsCount - 1; i++) {
 			for (int j=0; j<teamsCount - 1; j++) {
-				if (i == j || i == teams.indexOf(team) || j == teams.indexOf(team)) continue;
+				if (i >= j || i == teams.indexOf(team) || j == teams.indexOf(team)) continue;
 				if (!teamOrder.contains(i)) teamOrder.add(i);
 				if (!teamOrder.contains(j)) teamOrder.add(j);
 				
-				FlowEdge edgeFromSource = new FlowEdge(flowNetwork.V()-2, againstVertexNumber, against.get(i+"-"+j));
+				FlowEdge edgeFromSource = new FlowEdge(startVertex, againstVertexNumber, against.get(i+"-"+j));
 				FlowEdge edgeToI = new FlowEdge(againstVertexNumber, againstVerticsCount+teamOrder.indexOf(i), Double.POSITIVE_INFINITY);
 				FlowEdge edgeToJ = new FlowEdge(againstVertexNumber, againstVerticsCount+teamOrder.indexOf(j), Double.POSITIVE_INFINITY);
 				
@@ -91,13 +97,24 @@ public class BaseballElimination {
 				flowNetwork.addEdge(edgeToI);
 				flowNetwork.addEdge(edgeToJ);
 				
+				maxCapacity += against.get(i+"-"+j);
 				againstVertexNumber++;
 			}
 		}
 		
 		for (int i=0; i<teamOrder.size(); i++) {
-			FlowEdge edge = new FlowEdge(againstVerticsCount+i, flowNetwork.V()-1, 
-					wins(team)+remaining(team)-wins.get(teamOrder.get(i)));
+			int otherTeamCapacity = wins(team)+remaining(team)-wins.get(teamOrder.get(i));
+			if (otherTeamCapacity < 0) otherTeamCapacity = 0;
+			FlowEdge edge = new FlowEdge(againstVerticsCount+i, sinkVertex, otherTeamCapacity);
+			flowNetwork.addEdge(edge);
+		}
+		
+		FordFulkerson fordFulkerson = new FordFulkerson(flowNetwork, startVertex, sinkVertex);
+		lastTeam = team;
+		this.fordFulkerson = fordFulkerson;
+		
+		if (maxCapacity > fordFulkerson.value()) {
+			return true;
 		}
 		
 		return false;
@@ -105,8 +122,20 @@ public class BaseballElimination {
 
 	public Iterable<String> certificateOfElimination(String team)
 			throws IllegalArgumentException {
-		// TODO call before isEliminated
-		return null;
+		if (!lastTeam.equals(team)) {
+			isEliminated(team);
+		}
+		
+		List<String> returnList = new ArrayList<>();
+		
+		for (String otherTeam : teams()) {
+			if (otherTeam.equals(team)) continue;
+			int otherTeamPos = againstVerticsCount + teamOrder.indexOf(teams.indexOf(otherTeam));
+			if (this.fordFulkerson.inCut(otherTeamPos)) {
+				returnList.add(otherTeam);
+			}
+		}
+		return returnList;
 	}
 
 	public static void main(String[] args) {
