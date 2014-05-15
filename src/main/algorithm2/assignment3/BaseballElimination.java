@@ -14,6 +14,7 @@ public class BaseballElimination {
 	private int againstVerticsCount = 0;
 	private List<Integer> teamOrder;
 	
+	private boolean trivialEliminated = false;
 	private int maxWin = 0;
 	private FordFulkerson fordFulkerson;
 	private String lastTeam = "";
@@ -72,6 +73,13 @@ public class BaseballElimination {
 	}
 
 	public boolean isEliminated(String team) throws IllegalArgumentException {
+		if (wins(team) + remaining(team) < maxWin) {
+			trivialEliminated = true;
+			return true;
+		} else {
+			trivialEliminated = false;
+		}
+		
 		int teamVerticsCount = teamsCount - 1;
 		
 		// start vertex number is g.V()-2, end vertex number is g.V()-1
@@ -83,8 +91,8 @@ public class BaseballElimination {
 		int againstVertexNumber = 0;
 		int maxCapacity = 0;
 		this.teamOrder = new ArrayList<>();
-		for (int i=0; i<teamsCount - 1; i++) {
-			for (int j=0; j<teamsCount - 1; j++) {
+		for (int i=0; i<teamsCount; i++) {
+			for (int j=0; j<teamsCount; j++) {
 				if (i >= j || i == teams.indexOf(team) || j == teams.indexOf(team)) continue;
 				if (!teamOrder.contains(i)) teamOrder.add(i);
 				if (!teamOrder.contains(j)) teamOrder.add(j);
@@ -127,6 +135,16 @@ public class BaseballElimination {
 		}
 		
 		List<String> returnList = new ArrayList<>();
+		
+		if (trivialEliminated) {
+			// return all the teams who absolutely certify to eliminate the team. 
+			for (String otherTeam : teams()) {
+				if (wins(otherTeam) > wins(team) + remaining(team)) {
+					returnList.add(otherTeam);
+				}
+			}
+			return returnList;
+		}
 		
 		for (String otherTeam : teams()) {
 			if (otherTeam.equals(team)) continue;
